@@ -15,50 +15,63 @@ import math
 from collections import Counter 
 import string
 from scipy.stats import mode
+from nltk.corpus import wordnet
 
 reload(sys)  
 sys.setdefaultencoding('utf8')
 
 lemmatizer = WordNetLemmatizer()
-stops = set(stopwords.words("english"))                 
+stops = set(stopwords.words("english"))      
 
 
-# def save_csv(data):
-# 	df1 = pd.read_csv('result1.csv')
-# 	df2 = pd.DataFrame(data=data,columns=['test_id','is_duplicate'])
-# 	frame = [df1,df2]
-# 	df = pd.concat(frame)
-# 	df.to_csv('result1.csv',header=True, index=False)
-# 	print "saved"
+# POS tag uses treebank_tag eg: noun plural is NNP noun singular is NNS but lemmatizer don't accept those
+def get_wordnet_pos(treebank_tag):
 
-# def create_csv():
-# 	df = pd.DataFrame(columns=['test_id','is_duplicate'])
-# 	df.to_csv('result1.csv',header=True, index=False)
-# 	print "csv created"
+    if treebank_tag.startswith('J'):
+        return wordnet.ADJ
+    elif treebank_tag.startswith('V'):
+        return wordnet.VERB
+    elif treebank_tag.startswith('N'):
+        return wordnet.NOUN
+    elif treebank_tag.startswith('R'):
+        return wordnet.ADV
+    else:
+        return ''        
 
+# Tokenize (task done are : lower, remove puncutation , tokenize , added tag , lemmatize , remove stop word)
 def tokernize_removestop(a):
 	a = a.lower()
 	# print a
 	a = re.sub('[():?.,]',"",a)
 	# print a
 	a = word_tokenize(a)
+	# print "token: ", a
+	b = add_pos_tag(a)[0]
+	# print "pos_tag_sents: ",b
+	c = []
+	for w in b:
+		first = w[0]
+		second = w[1]
+		# print first,second
+		try:
+			c.append(lemmatizer.lemmatize(first,get_wordnet_pos(second)))
+		except Exception,e:
+			c.append(first)
+	a =  c
+	# print "lemmatize: ", a
 	c = a
 	a = [w for w in a if not w in stops]
 	if(len(a)==0):
 		a=c
-	c = []
-	for w in a:
-		try:
-			c.append(lemmatizer.lemmatize(w))
-		except:
-			c.append(w)
-	a =  c
 	# print "token",a
 	return a
-	
-def add_pos_tag(a):
-	return nltk.pos_tag(a)
 
+
+#Added Tag in sentances like noun, verb etc..		
+def add_pos_tag(a):
+	return nltk.pos_tag_sents([a])
+
+#jaccard Distance
 def jaccard_distance(string,n):
 	# print a, b
 	for i in xrange(0,n):
@@ -71,21 +84,27 @@ def jaccard_distance(string,n):
 			# b = add_pos_tag(b)
 			a = set(a)
 			b = set(b)
-			# print a,b
+			print a,b
 			try:
 				inter_len = float(len(list(a.intersection(b))))
 				union_len = float(len(list(a.union(b))))
 				print "First String: ",string[i]
 				print "Second String: ",string[j]
-				print "jaccard_distance: ",inter_len/union_len
+				jaccard_distance_ans = inter_len/union_len
+				print "jaccard_distance: ",jaccard_distance_ans
 			except Exception,e:
 				print e
 				print "First String: ",string[i]
 				print "Second String: ",string[j]
-				print "jaccard_distance: ", 0
+				jaccard_distance_ans =0
+				print "jaccard_distance: ",jaccard_distance_ans
+			if(jaccard_distance_ans>0.9):
+				print "Similar"
+			else:
+				print "Disimilar"
 
 
-
+# Cosine Distance 
 def cosine_sim(string,n):
 	tfidf = TfidfVectorizer(tokenizer=tokernize_removestop,stop_words = 'english',lowercase=True)
 	y = tfidf.fit_transform(string)
@@ -95,8 +114,12 @@ def cosine_sim(string,n):
 			print "First String: ",string[i]
 			print "Second String: ",string[j]
 			print "cosine_sim: ", y_array[i][j] 
+			if(y_array[i][j]>0.9):
+				print "Similar"
+			else:
+				print "Disimilar"
 
-
+#Main function
 def main():
 	n = int(raw_input('Enter no of string you will enter: '))
 	input_array = []
@@ -113,5 +136,6 @@ def main():
 		cosine_sim(input_array,n)
 	except Exception,e:
 		print e
+
 
 main()
